@@ -1,7 +1,8 @@
 /**
- * Image generation using Banana.dev or similar services
- * Supports multiple image generation APIs
+ * Image generation using Gemini (Nano Banana) and Banana.dev services
  */
+
+import { GoogleGenAI } from "@google/genai";
 
 export interface ImageGenerationOptions {
   prompt: string;
@@ -16,115 +17,118 @@ export interface ImageGenerationResponse {
   error?: string;
 }
 
+const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
+
 /**
- * Generate image using Banana.dev API
- * Reference: https://www.banana.dev/
+ * Map requested width/height to the closest supported Gemini aspect ratio.
+ * Gemini only accepts a discrete set of aspect ratios, so we find the closest match.
  */
-export async function generateImageWithBanana(
+function deriveGeminiAspectRatio(
+  width?: number,
+  height?: number
+): string | undefined {
+  if (!width || !height) {
+    return undefined;
+  }
+
+  const targetRatio = width / height;
+  const supportedRatios: Array<{ label: string; value: number }> = [
+    { label: "1:1", value: 1 / 1 },
+    { label: "2:3", value: 2 / 3 },
+    { label: "3:2", value: 3 / 2 },
+    { label: "3:4", value: 3 / 4 },
+    { label: "4:3", value: 4 / 3 },
+    { label: "4:5", value: 4 / 5 },
+    { label: "5:4", value: 5 / 4 },
+    { label: "9:16", value: 9 / 16 },
+    { label: "16:9", value: 16 / 9 },
+    { label: "21:9", value: 21 / 9 },
+  ];
+
+  let closest = supportedRatios[0];
+  let smallestDiff = Math.abs(targetRatio - closest.value);
+
+  for (let i = 1; i < supportedRatios.length; i++) {
+    const diff = Math.abs(targetRatio - supportedRatios[i].value);
+    if (diff < smallestDiff) {
+      closest = supportedRatios[i];
+      smallestDiff = diff;
+    }
+  }
+
+  return closest.label;
+}
+
+/**
+ * Generate an image using Google's Gemini image models (aka Nano Banana).
+ * Reference: https://ai.google.dev/gemini-api/docs/image-generation#javascript
+ */
+export async function generateImageWithGemini(
   options: ImageGenerationOptions
 ): Promise<ImageGenerationResponse> {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    return {
+      success: false,
+      error: "GEMINI_API_KEY is not set",
+    };
+  }
+
   try {
-    const apiKey = process.env.BANANA_API_KEY;
-    const modelKey = process.env.BANANA_MODEL_KEY || "stable-diffusion-v1-5";
-
-    if (!apiKey) {
-      return {
-        success: false,
-        error: "BANANA_API_KEY is not set",
-      };
-    }
-
-    // Banana.dev API endpoint
-    const response = await fetch("https://api.banana.dev/start/v4", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        apiKey,
-        modelKey,
-        startOnly: true,
-        modelInputs: {
-          prompt: options.prompt,
-          width: options.width || 512,
-          height: options.height || 512,
-          num_inference_steps: 20,
-          guidance_scale: 7.5,
-        },
-      }),
+    const client = new GoogleGenAI({
+      apiKey,
     });
 
-    const data = await response.json();
+    const model = options.model || DEFAULT_GEMINI_IMAGE_MODEL;
+    const aspectRatio = deriveGeminiAspectRatio(options.width, options.height);
 
-    if (!response.ok || !data.id) {
+    const response = await client.models.generateContent({
+      model,
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: options.prompt }],
+        },
+      ],
+      config: aspectRatio
+        ? {
+            imageConfig: {
+              aspectRatio,
+            },
+          }
+        : undefined,
+    });
+
+    const parts = response.candidates?.[0]?.content?.parts;
+
+    if (!parts || parts.length === 0) {
       return {
         success: false,
-        error: data.message || "Failed to start image generation",
+        error: "No image returned by Gemini",
       };
     }
 
-    // Poll for result
-    const callId = data.id;
-    let attempts = 0;
-    const maxAttempts = 30;
+    for (const part of parts) {
+      if (part.inlineData?.data) {
+        const mimeType = part.inlineData.mimeType || "image/png";
+        const imageUrl = `data:${mimeType};base64,${part.inlineData.data}`;
 
-    while (attempts < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      const checkResponse = await fetch("https://api.banana.dev/check/v4", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          apiKey,
-          id: callId,
-        }),
-      });
-
-      const checkData = await checkResponse.json();
-
-      if (checkData.finished) {
-        if (checkData.modelOutputs && checkData.modelOutputs[0]?.image_base64) {
-          // Convert base64 to data URL
-          const imageBase64 = checkData.modelOutputs[0].image_base64;
-          const imageUrl = `data:image/png;base64,${imageBase64}`;
-          
-          return {
-            success: true,
-            imageUrl,
-          };
-        } else if (checkData.modelOutputs && checkData.modelOutputs[0]?.image_url) {
-          return {
-            success: true,
-            imageUrl: checkData.modelOutputs[0].image_url,
-          };
-        } else {
-          return {
-            success: false,
-            error: "No image in response",
-          };
-        }
-      }
-
-      if (checkData.failed) {
         return {
-          success: false,
-          error: checkData.message || "Image generation failed",
+          success: true,
+          imageUrl,
         };
       }
-
-      attempts++;
     }
 
     return {
       success: false,
-      error: "Image generation timeout",
+      error: "Gemini response did not include inline image data",
     };
   } catch (error: any) {
     return {
       success: false,
-      error: error.message || "Failed to generate image",
+      error: error.message || "Failed to generate image with Gemini",
     };
   }
 }
@@ -136,9 +140,9 @@ export async function generateImageWithBanana(
 export async function generateImage(
   options: ImageGenerationOptions
 ): Promise<ImageGenerationResponse> {
-  // Try Banana.dev first
-  if (process.env.BANANA_API_KEY) {
-    return generateImageWithBanana(options);
+  // Prefer Gemini if configured
+  if (process.env.GEMINI_API_KEY) {
+    return generateImageWithGemini(options);
   }
 
   // Add other image generation services here
@@ -149,4 +153,3 @@ export async function generateImage(
     error: "No image generation service configured",
   };
 }
-
