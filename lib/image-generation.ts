@@ -1,8 +1,9 @@
 /**
- * Image generation using Gemini (Nano Banana) and Banana.dev services
+ * Image generation using Gemini (Nano Banana) plus PushEngage upload support.
  */
 
 import { GoogleGenAI } from "@google/genai";
+import { Buffer } from "node:buffer";
 
 export interface ImageGenerationOptions {
   prompt: string;
@@ -18,6 +19,10 @@ export interface ImageGenerationResponse {
 }
 
 const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
+const MAX_UPLOAD_BYTES = 1 * 1024 * 1024; // 1 MB
+const PUSHENGAGE_UPLOAD_BASE_URL =
+  "https://staging-app.pushengage.com/d/v1/sites";
+const PUSHENGAGE_UPLOAD_SOURCE = "notification_large_image";
 
 /**
  * Map requested width/height to the closest supported Gemini aspect ratio.
@@ -57,6 +62,155 @@ function deriveGeminiAspectRatio(
   }
 
   return closest.label;
+}
+
+type SharpModule = typeof import("sharp");
+let sharpPromise: Promise<SharpModule> | null = null;
+
+async function getSharpInstance(): Promise<SharpModule> {
+  if (!sharpPromise) {
+    sharpPromise = import("sharp")
+      .then((mod) => (mod.default ?? mod) as SharpModule)
+      .catch((error) => {
+        console.error("Failed to load sharp for image compression:", error);
+        throw new Error(
+          "Generated image exceeds the 1MB limit and image compression is unavailable (sharp import failed)."
+        );
+      });
+  }
+
+  return sharpPromise;
+}
+
+interface OptimizedImage {
+  buffer: Buffer;
+  mimeType: string;
+}
+
+async function ensureOneMegabyteLimit(
+  buffer: Buffer,
+  mimeType: string
+): Promise<OptimizedImage> {
+  if (buffer.byteLength <= MAX_UPLOAD_BYTES) {
+    return { buffer, mimeType };
+  }
+
+  const sharp = await getSharpInstance();
+  const qualities = [80, 70, 60, 50, 40, 35, 30, 25];
+
+  for (const quality of qualities) {
+    const candidate = await sharp(buffer)
+      .resize({
+        width: 768,
+        height: 768,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality })
+      .toBuffer();
+
+    if (candidate.byteLength <= MAX_UPLOAD_BYTES) {
+      return {
+        buffer: candidate,
+        mimeType: "image/webp",
+      };
+    }
+  }
+
+  throw new Error(
+    "Generated image exceeds the 1MB limit even after compression. Try a simpler prompt or smaller dimensions."
+  );
+}
+
+function extractPushEngageError(data: any, status: number): string {
+  const tryString = (value: unknown): string | undefined => {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+    return undefined;
+  };
+
+  return (
+    tryString(data?.message) ||
+    tryString(data?.error) ||
+    tryString(data?.error?.message) ||
+    tryString(data?.errors?.[0]) ||
+    (data && typeof data === "object" ? JSON.stringify(data) : undefined) ||
+    `PushEngage upload failed (${status})`
+  );
+}
+
+/**
+ * Upload generated image bytes to PushEngage dashboard.
+ */
+async function uploadImageToPushEngage(
+  fileBuffer: Buffer,
+  mimeType: string
+): Promise<string> {
+  const authKey = process.env.PUSHENGAGE_DASHBOARD_AUTH_KEY;
+  const siteId = process.env.PUSHENGAGE_DASHBOARD_SITE_ID;
+
+  if (!authKey || !siteId) {
+    throw new Error(
+      "PUSHENGAGE_DASHBOARD_AUTH_KEY and PUSHENGAGE_DASHBOARD_SITE_ID must be set to upload images"
+    );
+  }
+
+  const uploadUrl = `${PUSHENGAGE_UPLOAD_BASE_URL}/${siteId}/files?upload_source=${encodeURIComponent(
+    PUSHENGAGE_UPLOAD_SOURCE
+  )}`;
+
+  const extension = mimeType.split("/")[1] || "png";
+  const filename = `gemini-image-${Date.now()}.${extension}`;
+
+  const formData = new FormData();
+  const arrayBuffer = new ArrayBuffer(fileBuffer.byteLength);
+  new Uint8Array(arrayBuffer).set(fileBuffer);
+  const blob = new Blob([arrayBuffer], { type: mimeType });
+  formData.append("file", blob, filename);
+
+  const response = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      Authorization: authKey,
+    },
+    body: formData,
+  });
+
+  const rawBody = await response.text();
+  let data: any = null;
+
+  console.log("rawBody", JSON.stringify(rawBody, null, 2));
+  if (rawBody) {
+    try {
+      data = JSON.parse(rawBody);
+    } catch {
+      data = rawBody;
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(extractPushEngageError(data, response.status));
+  }
+
+  if (!data || typeof data !== "object") {
+    throw new Error(
+      "PushEngage upload succeeded but returned an empty payload"
+    );
+  }
+
+  const remoteUrl =
+    data?.data?.url ||
+    data?.data?.file_url ||
+    data?.file_url ||
+    data?.url ||
+    data?.data?.full_url;
+
+  if (!remoteUrl) {
+    throw new Error("PushEngage upload succeeded but no file URL was returned");
+  }
+
+  return remoteUrl;
 }
 
 /**
@@ -111,12 +265,25 @@ export async function generateImageWithGemini(
 
     for (const part of parts) {
       if (part.inlineData?.data) {
-        const mimeType = part.inlineData.mimeType || "image/png";
-        const imageUrl = `data:${mimeType};base64,${part.inlineData.data}`;
+        const inlineData = part.inlineData;
+        const mimeType = inlineData.mimeType || "image/png";
+        const data = inlineData.data;
+
+        if (!data) {
+          continue;
+        }
+
+        const fileBuffer = Buffer.from(data, "base64");
+        const optimized = await ensureOneMegabyteLimit(fileBuffer, mimeType);
+
+        const uploadedUrl = await uploadImageToPushEngage(
+          optimized.buffer,
+          optimized.mimeType
+        );
 
         return {
           success: true,
-          imageUrl,
+          imageUrl: uploadedUrl,
         };
       }
     }
@@ -134,8 +301,7 @@ export async function generateImageWithGemini(
 }
 
 /**
- * Generate image using alternative service (Replicate, Stability AI, etc.)
- * This is a placeholder for other image generation services
+ * Generate image using available providers.
  */
 export async function generateImage(
   options: ImageGenerationOptions
