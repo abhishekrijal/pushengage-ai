@@ -48,33 +48,111 @@ export function EnhancedChatContainer() {
     
     if (!lastMessage) return "";
     
-    // TanStack AI stores content in parts array
-    if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
-      return lastMessage.parts
+    // Handle different content formats from TanStack AI (same logic as ChatMessage)
+    let messageContent: any = null;
+    
+    // Check if message has content directly (could be string or object)
+    if ((lastMessage as any).content !== undefined) {
+      messageContent = (lastMessage as any).content;
+    }
+    // Check if message has parts array
+    else if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
+      messageContent = lastMessage.parts;
+    }
+    // Check if the message itself is the content (fallback)
+    else if (typeof lastMessage === "string") {
+      messageContent = lastMessage;
+    }
+    
+    if (!messageContent) {
+      return "";
+    }
+    
+    // Extract text content from various formats
+    // Handle string content directly
+    if (typeof messageContent === "string") {
+      // Filter out any non-text patterns (like object references)
+      if (messageContent.startsWith("[") || messageContent.includes("[object")) {
+        return "";
+      }
+      return messageContent;
+    }
+    // Handle array of content parts (TanStack AI format - parts array)
+    else if (Array.isArray(messageContent)) {
+      return messageContent
         .map((part: any) => {
+          // TanStack AI format: { type: "text", content: "..." }
           if (part?.type === "text" && part?.content) {
             return part.content;
           }
+          if (typeof part === "string") return part;
+          if (part?.text) return part.text;
+          if (part?.content) return typeof part.content === "string" ? part.content : part.content?.text;
           return "";
         })
         .filter(Boolean)
         .join("");
     }
+    // Handle object with parts array
+    else if (messageContent?.parts && Array.isArray(messageContent.parts)) {
+      return messageContent.parts
+        .map((part: any) => {
+          if (part?.type === "text" && part?.content) {
+            return part.content;
+          }
+          if (typeof part === "string") return part;
+          if (part?.text) return part.text;
+          if (part?.content) return typeof part.content === "string" ? part.content : part.content?.text;
+          return "";
+        })
+        .filter(Boolean)
+        .join("");
+    }
+    // Handle object with content property
+    else if (messageContent?.content) {
+      return typeof messageContent.content === "string" 
+        ? messageContent.content 
+        : messageContent.content?.text || "";
+    }
+    // Handle text property
+    else if (messageContent?.text) {
+      const text = messageContent.text;
+      // Filter out object references or invalid content
+      if (typeof text === "string" && !text.startsWith("[") && !text.includes("[object")) {
+        return text;
+      }
+      return "";
+    }
+    
+    // If we got here, we couldn't extract valid content
+    // Log for debugging (only in browser console)
+    if (typeof window !== "undefined") {
+      console.warn("Could not extract text content from message:", lastMessage);
+    }
     
     return "";
   }, [messages]);
 
-  // Parse notifications when message changes
+  // Parse notifications when message changes (only when loading is complete)
   useEffect(() => {
-    if (lastAssistantMessage) {
+    // Only parse when not loading and we have a message
+    if (!isLoading && lastAssistantMessage && lastAssistantMessage.trim().length > 0) {
       const options = parseMultipleNotifications(lastAssistantMessage);
       setNotificationOptions(options);
-      if (options.length > 0 && !selectedNotification) {
+      // Always update to the first notification when new options are parsed
+      if (options.length > 0) {
         setSelectedNotification(options[0]);
         setSelectedNotificationId(options[0].id);
+        // Reset URL and image when new notification is parsed
+        setNotificationUrl("");
+        setNotificationImage("");
+      } else {
+        // If no options found, clear the selection
+        setSelectedNotification(null);
+        setSelectedNotificationId(null);
       }
     }
-  }, [lastAssistantMessage, selectedNotification]);
+  }, [lastAssistantMessage, isLoading]);
 
   const handleSelectNotification = (option: NotificationOption) => {
     setSelectedNotification(option);

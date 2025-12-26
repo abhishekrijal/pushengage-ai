@@ -52,6 +52,12 @@ export function NotificationFollowupForm({
     setEditableBody(notification.body);
   }, [notification.title, notification.body]);
 
+  // Update local state when initialUrl or initialImage props change
+  useEffect(() => {
+    setUrl(initialUrl);
+    setImageUrl(initialImage);
+  }, [initialUrl, initialImage]);
+
   // Update parent state when URL/image changes
   const handleUrlChange = (newUrl: string) => {
     setUrl(newUrl);
