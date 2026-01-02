@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SiteProvider } from "@/contexts/site-context";
 
 export const metadata: Metadata = {
   title: "PushEngage AI - Generate Push Notifications",
@@ -37,7 +38,9 @@ export default function RootLayout({
             `,
           }}
         />
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <SiteProvider>{children}</SiteProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

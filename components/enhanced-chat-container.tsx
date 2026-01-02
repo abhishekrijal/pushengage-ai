@@ -12,6 +12,7 @@ import { Loader2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PushEngageLogo } from "./pushengage-logo";
 import { ThemeToggle } from "./theme-toggle";
+import { useSite } from "@/contexts/site-context";
 
 interface SavedNotification {
   notification: ParsedNotification;
@@ -29,6 +30,9 @@ export function EnhancedChatContainer() {
   const [notificationUrl, setNotificationUrl] = useState<string>("");
   const [notificationImage, setNotificationImage] = useState<string>("");
   
+  // Get site data from context
+  const { siteData } = useSite();
+  
   const { messages, sendMessage, isLoading, error } = useChat({
     connection: fetchServerSentEvents("/api/chat"),
   });
@@ -42,6 +46,27 @@ export function EnhancedChatContainer() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Set notification URL from site context when site data is available (only once, if URL is empty)
+  useEffect(() => {
+    if (!siteData) {
+      return;
+    }
+
+    const siteUrl = siteData.site_url;
+    
+    if (siteUrl && typeof siteUrl === 'string' && siteUrl.trim()) {
+      const trimmedUrl = siteUrl.trim();
+      setNotificationUrl((currentUrl) => {
+        // Only set if current URL is empty to avoid overwriting user input
+        if (!currentUrl || currentUrl.trim() === '') {
+          return trimmedUrl;
+        }
+        return currentUrl;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteData]); // Depend on siteData object, not just site_url
 
   // Get the last assistant message and parse notifications
   const lastAssistantMessage = useMemo(() => {
@@ -145,8 +170,9 @@ export function EnhancedChatContainer() {
       if (options.length > 0) {
         setSelectedNotification(options[0]);
         setSelectedNotificationId(options[0].id);
-        // Reset URL and image when new notification is parsed
-        setNotificationUrl("");
+        // Reset URL to default site URL (preserve site URL from context) and clear image when new notification is parsed
+        const siteUrl = siteData?.site_url || "";
+        setNotificationUrl(siteUrl);
         setNotificationImage("");
       } else {
         // If no options found, clear the selection
@@ -154,7 +180,7 @@ export function EnhancedChatContainer() {
         setSelectedNotificationId(null);
       }
     }
-  }, [lastAssistantMessage, isLoading]);
+  }, [lastAssistantMessage, isLoading, siteData?.site_url]);
 
   const handleSelectNotification = (option: NotificationOption) => {
     setSelectedNotification(option);
@@ -300,7 +326,8 @@ export function EnhancedChatContainer() {
                           sendMessage(example);
                       setSelectedNotification(null);
                       setNotificationOptions([]);
-                      setNotificationUrl("");
+                      const siteUrl = siteData?.site_url || "";
+                      setNotificationUrl(siteUrl);
                       setNotificationImage("");
                         }}
                         className="px-4 py-2 text-sm rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-pe-primary-50 dark:hover:bg-pe-primary-900/20 hover:border-pe-primary-300 dark:hover:border-pe-primary-700 transition-colors"
@@ -373,7 +400,8 @@ export function EnhancedChatContainer() {
               setInputValue("");
               setSelectedNotification(null);
               setNotificationOptions([]);
-              setNotificationUrl("");
+              const siteUrl = siteData?.site_url || "";
+              setNotificationUrl(siteUrl);
               setNotificationImage("");
             }
           }}

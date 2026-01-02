@@ -54,8 +54,13 @@ export function NotificationFollowupForm({
 
   // Update local state when initialUrl or initialImage props change
   useEffect(() => {
-    setUrl(initialUrl);
-    setImageUrl(initialImage);
+    // Always update to ensure form reflects the prop value
+    if (initialUrl !== undefined) {
+      setUrl(initialUrl);
+    }
+    if (initialImage !== undefined) {
+      setImageUrl(initialImage);
+    }
   }, [initialUrl, initialImage]);
 
   // Update parent state when URL/image changes
@@ -231,30 +236,6 @@ export function NotificationFollowupForm({
             <ImageIcon className="w-4 h-4" />
             {showImageInput ? "Hide" : "Add"} Image (optional)
           </button>
-          {!showImageInput && (
-            <button
-              type="button"
-              onClick={handleGenerateImage}
-              disabled={isGeneratingImage}
-                className={cn(
-                  "flex items-center gap-2 text-xs px-3 py-1.5 rounded-md",
-                  "bg-pe-primary-600 text-white hover:bg-pe-primary-700 dark:bg-pe-primary-500 dark:hover:bg-pe-primary-600",
-                  "disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                )}
-            >
-              {isGeneratingImage ? (
-                <>
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3 h-3" />
-                  Generate with AI
-                </>
-              )}
-            </button>
-          )}
         </div>
 
         {/* Image URL Input */}
@@ -272,31 +253,44 @@ export function NotificationFollowupForm({
                 className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => handleImageChange(e.target.value)}
-                placeholder="https://example.com/image.jpg or use Generate button"
-                className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              <button
-                type="button"
-                onClick={handleGenerateImage}
-                disabled={isGeneratingImage}
-                className={cn(
-                  "px-4 py-2 text-sm rounded-lg border border-pe-primary-600 text-pe-primary-600 dark:border-pe-primary-500 dark:text-pe-primary-400",
-                  "hover:bg-pe-primary-50 dark:hover:bg-pe-primary-900/20",
-                  "disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
-                  "flex items-center gap-2"
-                )}
-              >
-                {isGeneratingImage ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-              </button>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Image URL
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={imageUrl}
+                  onChange={(e) => handleImageChange(e.target.value)}
+                  placeholder="https://example.com/image.jpg or use Generate button"
+                  className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleGenerateImage}
+                  disabled={isGeneratingImage}
+                  className={cn(
+                    "px-4 py-2 text-sm rounded-lg border border-pe-primary-600 text-pe-primary-600 dark:border-pe-primary-500 dark:text-pe-primary-400",
+                    "hover:bg-pe-primary-50 dark:hover:bg-pe-primary-900/20",
+                    "disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
+                    "flex items-center gap-2"
+                  )}
+                >
+                  {isGeneratingImage ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="whitespace-nowrap">Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span className="whitespace-nowrap">
+                        Generate with AI
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
             {imageUrl && (
               <div className="mt-2 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">

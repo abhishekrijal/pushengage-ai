@@ -24,6 +24,10 @@ const PUSHENGAGE_UPLOAD_BASE_URL =
   "https://staging-app.pushengage.com/d/v1/sites";
 const PUSHENGAGE_UPLOAD_SOURCE = "notification_large_image";
 
+// Supported image formats for PushEngage
+const SUPPORTED_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/gif"];
+const SUPPORTED_EXTENSIONS = ["png", "jpg", "jpeg", "gif"];
+
 /**
  * Map requested width/height to the closest supported Gemini aspect ratio.
  * Gemini only accepts a discrete set of aspect ratios, so we find the closest match.
@@ -64,6 +68,28 @@ function deriveGeminiAspectRatio(
   return closest.label;
 }
 
+/**
+ * Normalize mimeType to a supported format (png, jpg, jpeg, gif).
+ * Returns a supported mimeType, defaulting to image/png.
+ */
+function normalizeToSupportedFormat(mimeType: string): string {
+  const normalized = mimeType.toLowerCase().trim();
+  
+  // Check if already a supported format
+  if (SUPPORTED_MIME_TYPES.includes(normalized)) {
+    return normalized;
+  }
+  
+  // Map common formats to supported ones
+  if (normalized === "image/webp" || normalized === "image/avif") {
+    // Convert webp/avif to PNG for best compatibility
+    return "image/png";
+  }
+  
+  // Default to PNG for any unrecognized format
+  return "image/png";
+}
+
 type SharpModule = typeof import("sharp");
 let sharpPromise: Promise<SharpModule> | null = null;
 
@@ -91,28 +117,74 @@ async function ensureOneMegabyteLimit(
   buffer: Buffer,
   mimeType: string
 ): Promise<OptimizedImage> {
-  if (buffer.byteLength <= MAX_UPLOAD_BYTES) {
-    return { buffer, mimeType };
+  // Normalize to supported format
+  const normalizedMimeType = normalizeToSupportedFormat(mimeType);
+  const originalMimeType = mimeType.toLowerCase().trim();
+  const needsFormatConversion = normalizedMimeType !== originalMimeType;
+  
+  if (buffer.byteLength <= MAX_UPLOAD_BYTES && !needsFormatConversion) {
+    // Already under limit and in supported format - return as-is
+    return { buffer, mimeType: normalizedMimeType };
   }
 
   const sharp = await getSharpInstance();
+  
+  // If format conversion is needed (e.g., webp to png), do it first
+  if (needsFormatConversion && buffer.byteLength <= MAX_UPLOAD_BYTES) {
+    const formatMap: Record<string, "png" | "jpeg" | "gif"> = {
+      "image/png": "png",
+      "image/jpeg": "jpeg",
+      "image/jpg": "jpeg",
+      "image/gif": "gif",
+    };
+    const outputFormat = formatMap[normalizedMimeType] || "png";
+    const converted = await sharp(buffer).toFormat(outputFormat).toBuffer();
+    
+    if (converted.byteLength <= MAX_UPLOAD_BYTES) {
+      return { buffer: converted, mimeType: normalizedMimeType };
+    }
+    // If converted image is still too large, fall through to compression
+    buffer = converted;
+  }
+
+  // Compression needed - determine output format
   const qualities = [80, 70, 60, 50, 40, 35, 30, 25];
+  
+  // For compression, convert GIF to PNG (sharp doesn't compress GIFs well)
+  // Use PNG for PNG/GIF, JPEG for JPEG/JPG
+  const isPngOrGif = normalizedMimeType === "image/png" || normalizedMimeType === "image/gif";
+  const outputFormat = isPngOrGif ? "png" : "jpeg";
+  const outputMimeType = isPngOrGif ? "image/png" : "image/jpeg";
 
   for (const quality of qualities) {
-    const candidate = await sharp(buffer)
-      .resize({
-        width: 768,
-        height: 768,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .webp({ quality })
-      .toBuffer();
+    let candidate: Buffer;
+    
+    if (outputFormat === "png") {
+      candidate = await sharp(buffer)
+        .resize({
+          width: 768,
+          height: 768,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .png({ quality, compressionLevel: 9 })
+        .toBuffer();
+    } else {
+      candidate = await sharp(buffer)
+        .resize({
+          width: 768,
+          height: 768,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality, mozjpeg: true })
+        .toBuffer();
+    }
 
     if (candidate.byteLength <= MAX_UPLOAD_BYTES) {
       return {
         buffer: candidate,
-        mimeType: "image/webp",
+        mimeType: outputMimeType,
       };
     }
   }
@@ -160,7 +232,14 @@ async function uploadImageToPushEngage(
     PUSHENGAGE_UPLOAD_SOURCE
   )}`;
 
-  const extension = mimeType.split("/")[1] || "png";
+  // Map mimeType to file extension for supported formats
+  const mimeToExtension: Record<string, string> = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/gif": "gif",
+  };
+  const extension = mimeToExtension[mimeType] || "png";
   const filename = `gemini-image-${Date.now()}.${extension}`;
 
   const formData = new FormData();
@@ -266,7 +345,9 @@ export async function generateImageWithGemini(
     for (const part of parts) {
       if (part.inlineData?.data) {
         const inlineData = part.inlineData;
-        const mimeType = inlineData.mimeType || "image/png";
+        const rawMimeType = inlineData.mimeType || "image/png";
+        // Normalize to supported format (png, jpg, jpeg, gif only)
+        const mimeType = normalizeToSupportedFormat(rawMimeType);
         const data = inlineData.data;
 
         if (!data) {
