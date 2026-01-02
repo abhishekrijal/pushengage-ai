@@ -280,3 +280,134 @@ export async function getSiteByID(siteId: string): Promise<any> {
     throw new Error(errorMessage);
   }
 }
+
+export async function getNotifications(
+  siteId: string,
+  limit: number = 10,
+  page: number = 1
+): Promise<any> {
+  try {
+    const authKey = process.env.PUSHENGAGE_DASHBOARD_AUTH_KEY;
+    let baseUrl = process.env.PUSHENGAGE_DASHBOARD_API_URL || "https://staging-app.pushengage.com/d/v1";
+    baseUrl = baseUrl.replace(/\/+$/, '');
+    
+    const apiUrl = `${baseUrl}/sites/${siteId}/notifications?limit=${limit}&page=${page}`.replace(/([^:]\/)\/+/g, '$1');
+    
+    if (!authKey) {
+      throw new Error("PUSHENGAGE_DASHBOARD_AUTH_KEY is not configured");
+    }
+
+    const response = await fetch(apiUrl, {
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": authKey,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData: any;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText || `HTTP ${response.status}` };
+      }
+      throw new Error(errorData?.message || errorData?.error || `Failed to fetch notifications: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error: any) {
+    console.error("Error fetching notifications:", error);
+    throw error;
+  }
+}
+
+export async function getAnalyticsSummary(
+  siteId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<any> {
+  try {
+    const authKey = process.env.PUSHENGAGE_DASHBOARD_AUTH_KEY;
+    let baseUrl = process.env.PUSHENGAGE_DASHBOARD_API_URL || "https://staging-app.pushengage.com/d/v1";
+    baseUrl = baseUrl.replace(/\/+$/, '');
+    
+    let apiUrl = `${baseUrl}/sites/${siteId}/analytics/summary?expand=analytics_in_metadata`;
+    if (startDate) {
+      apiUrl += `&start_created_at=${startDate}`;
+    }
+    if (endDate) {
+      apiUrl += `&end_created_at=${endDate}`;
+    }
+    apiUrl = apiUrl.replace(/([^:]\/)\/+/g, '$1');
+    
+    if (!authKey) {
+      throw new Error("PUSHENGAGE_DASHBOARD_AUTH_KEY is not configured");
+    }
+
+    const response = await fetch(apiUrl, {
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": authKey,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData: any;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText || `HTTP ${response.status}` };
+      }
+      throw new Error(errorData?.message || errorData?.error || `Failed to fetch analytics summary: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error: any) {
+    console.error("Error fetching analytics summary:", error);
+    throw error;
+  }
+}
+
+export async function getNotificationResultSummary(
+  siteId: string
+): Promise<any> {
+  try {
+    const authKey = process.env.PUSHENGAGE_DASHBOARD_AUTH_KEY;
+    let baseUrl = process.env.PUSHENGAGE_DASHBOARD_API_URL || "https://staging-app.pushengage.com/d/v1";
+    baseUrl = baseUrl.replace(/\/+$/, '');
+    
+    const apiUrl = `${baseUrl}/sites/${siteId}/analytics/notification-result/summary?include_meta=total,curr`.replace(/([^:]\/)\/+/g, '$1');
+    
+    if (!authKey) {
+      throw new Error("PUSHENGAGE_DASHBOARD_AUTH_KEY is not configured");
+    }
+
+    const response = await fetch(apiUrl, {
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": authKey,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData: any;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText || `HTTP ${response.status}` };
+      }
+      throw new Error(errorData?.message || errorData?.error || `Failed to fetch notification result summary: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error: any) {
+    console.error("Error fetching notification result summary:", error);
+    throw error;
+  }
+}

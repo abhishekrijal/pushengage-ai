@@ -55,17 +55,16 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         const siteUrl = result.data?.data?.site_url || result.data?.data?.site?.site_url;
         
         const extractedSiteData: SiteData = {
+          // Store the full data object first for any additional fields
+          ...result.data?.data,
+          // Then override with extracted values, ensuring site_url is set correctly
           site_id: result.data?.data?.site_id || result.data?.data?.site?.site_id,
           site_name: result.data?.data?.site_name || result.data?.data?.site?.site_name,
-          site_url: siteUrl, // Use the extracted value
+          site_url: siteUrl || result.data?.data?.site_url || result.data?.data?.site?.site_url,
           site_image: result.data?.data?.site_image || result.data?.data?.site?.site_image,
           site_status: result.data?.data?.site_status || result.data?.data?.site?.site_status,
           site_key: result.data?.data?.site_key || result.data?.data?.site?.site_key,
           site_subdomain: result.data?.data?.site_subdomain || result.data?.data?.site?.site_subdomain,
-          // Store the full data object for any additional fields (but site_url is already set above)
-          ...result.data?.data,
-          // Ensure site_url is not overwritten by spread
-          site_url: siteUrl || result.data?.data?.site_url || result.data?.data?.site?.site_url,
         };
 
         setSiteData(extractedSiteData);

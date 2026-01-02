@@ -13,6 +13,12 @@ import { cn } from "@/lib/utils";
 import { PushEngageLogo } from "./pushengage-logo";
 import { ThemeToggle } from "./theme-toggle";
 import { useSite } from "@/contexts/site-context";
+import { 
+  NotificationTypeSelector, 
+  TriggeredCampaignSelector,
+  type NotificationType,
+  type TriggeredCampaignType 
+} from "./notification-type-selector";
 
 interface SavedNotification {
   notification: ParsedNotification;
@@ -30,8 +36,13 @@ export function EnhancedChatContainer() {
   const [notificationUrl, setNotificationUrl] = useState<string>("");
   const [notificationImage, setNotificationImage] = useState<string>("");
   
+  // Notification type selection state
+  const [selectedNotificationType, setSelectedNotificationType] = useState<NotificationType | null>(null);
+  const [selectedTriggeredType, setSelectedTriggeredType] = useState<TriggeredCampaignType | null>(null);
+  const [showChatInterface, setShowChatInterface] = useState(false);
+  
   // Get site data from context
-  const { siteData } = useSite();
+  const { siteData, isLoading: siteLoading, error: siteError } = useSite();
   
   const { messages, sendMessage, isLoading, error } = useChat({
     connection: fetchServerSentEvents("/api/chat"),
@@ -256,6 +267,66 @@ export function EnhancedChatContainer() {
     }
   };
 
+  const handleNotificationTypeSelect = (type: NotificationType) => {
+    setSelectedNotificationType(type);
+    if (type !== "triggered") {
+      // For broadcast, drip, and workflow, directly show chat interface
+      setShowChatInterface(true);
+      // Generate appropriate prompt based on type
+      const prompts: Record<NotificationType, string> = {
+        broadcast: "Create a push broadcast notification",
+        drip: "Create a drip campaign notification series",
+        workflow: "Create a workflow notification sequence",
+        triggered: "",
+      };
+      if (prompts[type]) {
+        // Use useEffect to send message after chat interface is shown
+        setTimeout(() => {
+          try {
+            sendMessage(prompts[type]);
+          } catch (error) {
+            console.error("Error sending message:", error);
+          }
+        }, 200);
+      }
+    }
+  };
+
+  const handleTriggeredCampaignSelect = (type: TriggeredCampaignType) => {
+    setSelectedTriggeredType(type);
+    setShowChatInterface(true);
+    // Generate appropriate prompt based on triggered type
+    const prompts: Record<TriggeredCampaignType, string> = {
+      browse: "Create a browse abandonment push notification",
+      "cart-abandonment": "Create a cart abandonment push notification",
+      "price-drop": "Create a price drop alert push notification",
+      "back-in-stock": "Create a back in stock push notification",
+      "welcome-series": "Create a welcome series push notification",
+      "re-engagement": "Create a re-engagement push notification",
+    };
+    if (prompts[type]) {
+      // Use setTimeout to ensure chat interface is ready
+      setTimeout(() => {
+        try {
+          sendMessage(prompts[type]);
+        } catch (error) {
+          console.error("Error sending message:", error);
+        }
+      }, 200);
+    }
+  };
+
+  const handleBackToNotificationTypes = () => {
+    setSelectedNotificationType(null);
+    setSelectedTriggeredType(null);
+    setShowChatInterface(false);
+    // Clear any selected notifications and reset state
+    setSelectedNotification(null);
+    setNotificationOptions([]);
+    setNotificationUrl(siteData?.site_url || "");
+    setNotificationImage("");
+  };
+
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
       {/* Left side - Chat */}
@@ -264,6 +335,27 @@ export function EnhancedChatContainer() {
         <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 h-20 flex items-center">
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3">
+              {showChatInterface && (
+                <button
+                  onClick={handleBackToNotificationTypes}
+                  className="mr-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  title="Back to notification types"
+                >
+                  <svg
+                    className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+              )}
               <div className="flex items-center">
                 <PushEngageLogo width={140} height={20} />
               </div>
@@ -284,7 +376,72 @@ export function EnhancedChatContainer() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
           <div className="max-w-3xl mx-auto space-y-4">
-            {messages.length === 0 && (
+            {!showChatInterface && (
+              <div className="py-12">
+                {/* Greeting based on site data */}
+                {siteLoading ? (
+                  <div className="text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-pe-primary-600 dark:text-pe-primary-400 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400">Loading your site data...</p>
+                  </div>
+                ) : siteError ? (
+                  <div className="text-center mb-8">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                      Welcome!
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Let&apos;s create an effective push notification.
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                      (Site data unavailable)
+                    </p>
+                  </div>
+                ) : siteData ? (
+                  <div className="text-center mb-8">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                      Welcome{siteData.site_name ? ` to ${siteData.site_name}` : ""}!
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Let&apos;s create an effective push notification for your audience.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-center mb-8">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                      Welcome!
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Let&apos;s create an effective push notification.
+                    </p>
+                  </div>
+                )}
+
+                {/* Notification Type Selection */}
+                {!selectedNotificationType && (
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 text-center">
+                      What type of notification do you want to create today?
+                    </h3>
+                    <NotificationTypeSelector onSelect={handleNotificationTypeSelect} />
+                  </div>
+                )}
+
+                {/* Triggered Campaign Sub-selection */}
+                {selectedNotificationType === "triggered" && !selectedTriggeredType && (
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 text-center">
+                      Choose your triggered campaign type
+                    </h3>
+                    <TriggeredCampaignSelector
+                      onSelect={handleTriggeredCampaignSelect}
+                      onBack={handleBackToNotificationTypes}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showChatInterface && messages.length === 0 && (
               <div className="text-center py-12">
                 <div className="inline-block p-4 rounded-full bg-pe-primary-100 dark:bg-pe-primary-900/20 mb-4">
                   <svg
@@ -340,7 +497,7 @@ export function EnhancedChatContainer() {
               </div>
             )}
 
-            {messages.map((message) => {
+            {showChatInterface && messages.map((message) => {
               // Extract content from TanStack AI message format
               let messageContent: any = null;
               
@@ -360,7 +517,7 @@ export function EnhancedChatContainer() {
               );
             })}
 
-            {error && (
+            {showChatInterface && error && (
               <div className="flex gap-3 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                 <div className="flex-1">
                   <div className="inline-block p-3 rounded-lg bg-white dark:bg-gray-800 border border-red-200 dark:border-red-700">
@@ -372,7 +529,7 @@ export function EnhancedChatContainer() {
               </div>
             )}
 
-            {isLoading && (
+            {showChatInterface && isLoading && (
               <div className="flex gap-3 p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pe-primary-600 dark:bg-pe-primary-500 flex items-center justify-center">
                   <Loader2 className="w-5 h-5 text-white animate-spin" />
@@ -392,21 +549,22 @@ export function EnhancedChatContainer() {
         </div>
 
         {/* Input */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (inputValue.trim() && !isLoading) {
-              sendMessage(inputValue.trim());
-              setInputValue("");
-              setSelectedNotification(null);
-              setNotificationOptions([]);
-              const siteUrl = siteData?.site_url || "";
-              setNotificationUrl(siteUrl);
-              setNotificationImage("");
-            }
-          }}
-          className="flex-shrink-0"
-        >
+        {showChatInterface && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (inputValue.trim() && !isLoading) {
+                sendMessage(inputValue.trim());
+                setInputValue("");
+                setSelectedNotification(null);
+                setNotificationOptions([]);
+                const siteUrl = siteData?.site_url || "";
+                setNotificationUrl(siteUrl);
+                setNotificationImage("");
+              }
+            }}
+            className="flex-shrink-0"
+          >
           <div className="border-t border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-900">
             <div className="flex gap-2 items-end max-w-3xl mx-auto">
               <textarea
@@ -446,6 +604,7 @@ export function EnhancedChatContainer() {
             </div>
           </div>
         </form>
+        )}
       </div>
 
       {/* Right side - Preview & Actions */}

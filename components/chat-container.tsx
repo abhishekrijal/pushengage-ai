@@ -29,62 +29,122 @@ export function ChatContainer() {
 
     if (!lastMessage) return "";
 
-    // TanStack AI stores content in parts array
-    if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
-      return lastMessage.parts
-        .map((part: any) => {
-          if (part?.type === "text" && part?.content) {
-            return part.content;
-          }
-          if (typeof part === "string") return part;
-          if (part?.text) return part.text;
-          if (part?.content)
-            return typeof part.content === "string"
-              ? part.content
-              : part.content?.text;
-          return "";
-        })
-        .filter(Boolean)
-        .join("");
+    // Handle different content formats from TanStack AI
+    let messageContent: any = null;
+    
+    // Check if message has content directly (could be string or object)
+    if ((lastMessage as any).content !== undefined) {
+      messageContent = (lastMessage as any).content;
     }
-
-    // Fallback to content property
-    const content = lastMessage.content;
-
+    // Check if message has parts array
+    else if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
+      messageContent = lastMessage.parts;
+    }
+    // Check if the message itself is the content (fallback)
+    else if (typeof lastMessage === "string") {
+      messageContent = lastMessage;
+    }
+    
+    if (!messageContent) {
+      return "";
+    }
+    
+    // Extract text content from various formats
     // Handle string content directly
-    if (typeof content === "string") {
-      return content;
+    if (typeof messageContent === "string") {
+      // Filter out any non-text patterns (like object references)
+      if (messageContent.startsWith("[") || messageContent.includes("[object")) {
+        return "";
+      }
+      return messageContent;
     }
-
-    // Handle array of content parts
-    if (Array.isArray(content)) {
-      return content
+    // Handle array of content parts (TanStack AI format - parts array)
+    else if (Array.isArray(messageContent)) {
+      return messageContent
+        .map((part: any) => {
+          // TanStack AI format: { type: "text", content: "..." }
+          if (part?.type === "text" && part?.content) {
+            return part.content;
+          }
+          if (typeof part === "string") return part;
+          if (part?.text) return part.text;
+          if (part?.content) return typeof part.content === "string" ? part.content : part.content?.text;
+          return "";
+        })
+        .filter(Boolean)
+        .join("");
+    }
+    // Handle object with parts array
+    else if (messageContent?.parts && Array.isArray(messageContent.parts)) {
+      return messageContent.parts
         .map((part: any) => {
           if (part?.type === "text" && part?.content) {
             return part.content;
           }
           if (typeof part === "string") return part;
           if (part?.text) return part.text;
-          if (part?.content)
-            return typeof part.content === "string"
-              ? part.content
-              : part.content?.text;
+          if (part?.content) return typeof part.content === "string" ? part.content : part.content?.text;
           return "";
         })
         .filter(Boolean)
         .join("");
     }
-
     // Handle object with content property
-    if (content?.content) {
-      return typeof content.content === "string"
-        ? content.content
-        : content.content?.text || "";
+    else if (messageContent?.content) {
+      return typeof messageContent.content === "string" 
+        ? messageContent.content 
+        : messageContent.content?.text || "";
+    }
+    // Handle text property
+    else if (messageContent?.text) {
+      const text = messageContent.text;
+      // Filter out object references or invalid content
+      if (typeof text === "string" && !text.startsWith("[") && !text.includes("[object")) {
+        return text;
+      }
+      return "";
     }
 
-    // Handle text property
-    if (content?.text) {
-      return content.text;
+    // Fallback to content property (with type casting)
+    const content = (lastMessage as any).content;
+
+    // Additional fallback handling (if content exists)
+    if (content) {
+      // Handle string content directly
+      if (typeof content === "string") {
+        return content;
+      }
+
+      // Handle array of content parts
+      if (Array.isArray(content)) {
+        return content
+          .map((part: any) => {
+            if (part?.type === "text" && part?.content) {
+              return part.content;
+            }
+            if (typeof part === "string") return part;
+            if (part?.text) return part.text;
+            if (part?.content)
+              return typeof part.content === "string"
+                ? part.content
+                : part.content?.text;
+            return "";
+          })
+          .filter(Boolean)
+          .join("");
+      }
+
+      // Handle object with content property
+      if (content?.content) {
+        return typeof content.content === "string"
+          ? content.content
+          : content.content?.text || "";
+      }
+
+      // Handle text property
+      if (content?.text) {
+        return content.text;
+      }
     }
 
     return "";
@@ -129,7 +189,7 @@ export function ChatContainer() {
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
                   Describe what kind of push notification you want to create,
-                  and I'll generate effective content following best practices.
+                  and I&apos;ll generate effective content following best practices.
                 </p>
                 <div className="mt-6 space-y-2">
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -160,13 +220,13 @@ export function ChatContainer() {
 
             {messages.map((message) => {
               // Extract content from TanStack AI message format
-              let messageContent: any = message.content;
+              let messageContent: any = null;
 
               // TanStack AI stores content in parts array
               if (message.parts && Array.isArray(message.parts)) {
                 messageContent = message.parts;
-              } else if (message.content) {
-                messageContent = message.content;
+              } else if ((message as any).content !== undefined) {
+                messageContent = (message as any).content;
               }
 
               return (

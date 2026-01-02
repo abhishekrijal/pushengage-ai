@@ -333,6 +333,8 @@ export async function generateImageWithGemini(
         : undefined,
     });
 
+    console.log("Gemini response:", JSON.stringify(response, null, 2));
+
     const parts = response.candidates?.[0]?.content?.parts;
 
     if (!parts || parts.length === 0) {
