@@ -87,7 +87,7 @@ export function EnhancedNotificationPreview({
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-gray-200 dark:border-gray-700">
                 <div className="flex items-start gap-3">
                   {/* App icon */}
-                  <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-pe-primary-600 to-pe-secondary-500 dark:from-pe-primary-500 dark:to-pe-secondary-400 flex items-center justify-center">
                     {notification.emoji ? (
                       <span className="text-2xl">{notification.emoji}</span>
                     ) : (
@@ -150,7 +150,7 @@ export function EnhancedNotificationPreview({
         {previewType === "chrome" && (
           <div className="relative">
             {/* macOS Desktop Background */}
-            <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 rounded-2xl p-8 min-h-[500px]">
+            <div className="bg-gradient-to-br from-pe-primary-50 via-pe-secondary-50 to-pe-primary-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 rounded-2xl p-8 min-h-[500px]">
               {/* macOS Notification - Top Right Corner Style */}
               <div className="absolute top-8 right-8 w-96 group">
                 <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 dark:border-gray-700/50 overflow-hidden transition-all duration-200 hover:shadow-3xl">
@@ -186,7 +186,7 @@ export function EnhancedNotificationPreview({
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input type="checkbox" className="sr-only peer" defaultChecked />
-                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-pe-primary-300 dark:peer-focus:ring-pe-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-pe-primary-600 dark:peer-checked:bg-pe-primary-500"></div>
                         </label>
                       </div>
                     </div>
@@ -196,7 +196,7 @@ export function EnhancedNotificationPreview({
                   <div className="p-4">
                     <div className="flex items-start gap-3">
                       {/* App icon */}
-                      <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-pe-primary-600 to-pe-secondary-500 dark:from-pe-primary-500 dark:to-pe-secondary-400 flex items-center justify-center shadow-lg">
                         {notification.emoji ? (
                           <span className="text-2xl">{notification.emoji}</span>
                         ) : (

@@ -10,6 +10,8 @@ import { parseMultipleNotifications, NotificationOption } from "@/lib/parse-mult
 import { ParsedNotification } from "@/lib/parse-notification";
 import { Loader2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PushEngageLogo } from "./pushengage-logo";
+import { ThemeToggle } from "./theme-toggle";
 
 interface SavedNotification {
   notification: ParsedNotification;
@@ -195,10 +197,25 @@ export function EnhancedChatContainer() {
         }),
       });
 
-      const result = await response.json();
+      // Get response text first to handle both JSON and HTML responses
+      const responseText = await response.text();
+      const contentType = response.headers.get("content-type") || "";
+      let result: any;
+      
+      if (contentType.includes("application/json")) {
+        try {
+          result = JSON.parse(responseText);
+        } catch (parseError: any) {
+          throw new Error(`Invalid JSON response from server. Status: ${response.status}`);
+        }
+      } else {
+        // Non-JSON response (likely HTML error page)
+        throw new Error(`Server returned an error (Status: ${response.status}). Please check the API configuration.`);
+      }
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to send notification");
+      if (!response.ok || result.success === false) {
+        const errorMessage = result.error || result.message || "Failed to send notification";
+        throw new Error(errorMessage);
       }
 
       alert("Notification sent successfully via PushEngage!");
@@ -218,13 +235,24 @@ export function EnhancedChatContainer() {
       {/* Left side - Chat */}
       <div className="flex flex-col flex-1 border-r border-gray-200 dark:border-gray-800">
         {/* Header */}
-        <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            PushEngage AI
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Generate effective push notifications with AI
-          </p>
+        <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 h-20 flex items-center">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center">
+                <PushEngageLogo width={140} height={20} />
+              </div>
+              <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                  AI Assistant
+                </h1>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Generate effective push notifications
+                </p>
+              </div>
+            </div>
+            <ThemeToggle />
+          </div>
         </header>
 
         {/* Messages */}
@@ -232,9 +260,9 @@ export function EnhancedChatContainer() {
           <div className="max-w-3xl mx-auto space-y-4">
             {messages.length === 0 && (
               <div className="text-center py-12">
-                <div className="inline-block p-4 rounded-full bg-purple-100 dark:bg-purple-900/20 mb-4">
+                <div className="inline-block p-4 rounded-full bg-pe-primary-100 dark:bg-pe-primary-900/20 mb-4">
                   <svg
-                    className="w-12 h-12 text-purple-500"
+                    className="w-12 h-12 text-pe-primary-600 dark:text-pe-primary-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -275,7 +303,7 @@ export function EnhancedChatContainer() {
                       setNotificationUrl("");
                       setNotificationImage("");
                         }}
-                        className="px-4 py-2 text-sm rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        className="px-4 py-2 text-sm rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-pe-primary-50 dark:hover:bg-pe-primary-900/20 hover:border-pe-primary-300 dark:hover:border-pe-primary-700 transition-colors"
                       >
                         {example}
                       </button>
@@ -319,7 +347,7 @@ export function EnhancedChatContainer() {
 
             {isLoading && (
               <div className="flex gap-3 p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pe-primary-600 dark:bg-pe-primary-500 flex items-center justify-center">
                   <Loader2 className="w-5 h-5 text-white animate-spin" />
                 </div>
                 <div className="flex-1">
@@ -370,7 +398,7 @@ export function EnhancedChatContainer() {
                 placeholder="Describe the push notification you want to create..."
                 disabled={isLoading}
                 rows={1}
-                className="flex-1 resize-none px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed min-h-[52px] max-h-[200px]"
+                className="flex-1 resize-none px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-pe-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed min-h-[52px] max-h-[200px]"
                 style={{
                   height: "auto",
                 }}
@@ -383,7 +411,7 @@ export function EnhancedChatContainer() {
               <button
                 type="submit"
                 disabled={isLoading || !inputValue.trim()}
-                className="px-4 py-3 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center min-w-[52px]"
+                className="px-4 py-3 rounded-lg bg-pe-primary-600 text-white hover:bg-pe-primary-700 dark:bg-pe-primary-500 dark:hover:bg-pe-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center min-w-[52px]"
               >
                 <Send className="w-5 h-5" />
               </button>
@@ -394,13 +422,15 @@ export function EnhancedChatContainer() {
 
       {/* Right side - Preview & Actions */}
       <div className="w-[600px] flex-shrink-0 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col">
-        <header className="border-b border-gray-200 dark:border-gray-800 px-4 py-4 flex-shrink-0">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Preview & Send
-          </h2>
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-            Preview and configure your notification
-          </p>
+        <header className="border-b border-gray-200 dark:border-gray-800 px-4 h-20 flex items-center flex-shrink-0 bg-gradient-to-r from-pe-primary-50 to-transparent dark:from-pe-primary-950/20">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Preview & Send
+            </h2>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Preview and configure your notification
+            </p>
+          </div>
         </header>
         
         {/* Scrollable Content */}
@@ -484,8 +514,9 @@ export function EnhancedChatContainer() {
                 }}
                 disabled={isSending || !notificationUrl.trim()}
                 className={cn(
-                  "flex-1 px-4 py-3 text-sm rounded-lg bg-purple-500 text-white",
-                  "hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed",
+                  "flex-1 px-4 py-3 text-sm rounded-lg bg-pe-primary-600 text-white",
+                  "hover:bg-pe-primary-700 dark:bg-pe-primary-500 dark:hover:bg-pe-primary-600",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
                   "transition-colors flex items-center justify-center gap-2 font-medium"
                 )}
               >

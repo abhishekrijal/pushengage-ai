@@ -12,15 +12,24 @@ export async function POST(req: Request) {
       );
     }
 
-    const siteId = process.env.PUSHENGAGE_SITE_ID;
     const apiKey = process.env.PUSHENGAGE_API_KEY;
 
-    if (!siteId || !apiKey) {
+    if (!apiKey) {
+      console.error("PushEngage credentials missing:", {
+        hasApiKey: !!apiKey,
+        apiKeyLength: apiKey?.length,
+      });
       return NextResponse.json(
-        { error: "PushEngage credentials not configured" },
+        { error: "PushEngage API key not configured" },
         { status: 500 }
       );
     }
+
+    // Log that credentials are present (without exposing the actual key)
+    console.log("PushEngage API call:", {
+      hasApiKey: !!apiKey,
+      apiKeyPrefix: apiKey.substring(0, 8) + "...",
+    });
 
     const result = await sendPushEngageNotification(
       {
@@ -30,14 +39,21 @@ export async function POST(req: Request) {
         icon,
         image,
       },
-      siteId,
       apiKey
     );
 
-    if (result.status !== 200) {
+    // Check if the API response indicates failure (even if HTTP status is 200)
+    if (result.status !== 200 || (result.data && result.data.success === false)) {
+      const errorMessage = result.data?.message || result.message || "Failed to send notification";
+      const errorCode = result.data?.error_code;
+      
       return NextResponse.json(
-        { error: result.message },
-        { status: result.status }
+        { 
+          error: errorMessage,
+          error_code: errorCode,
+          success: false,
+        },
+        { status: result.status !== 200 ? result.status : 400 }
       );
     }
 

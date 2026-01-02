@@ -74,12 +74,12 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
       className={cn(
         "flex gap-3 p-4 rounded-lg",
         isUser
-          ? "bg-blue-50 dark:bg-blue-950/20 justify-end"
+          ? "bg-pe-primary-50 dark:bg-pe-primary-950/20 justify-end"
           : "bg-gray-50 dark:bg-gray-900/50 justify-start"
       )}
     >
       {!isUser && (
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center">
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pe-primary-600 dark:bg-pe-primary-500 flex items-center justify-center">
           <Bot className="w-5 h-5 text-white" />
         </div>
       )}
@@ -93,7 +93,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
           className={cn(
             "inline-block p-3 rounded-lg",
             isUser
-              ? "bg-blue-500 text-white"
+              ? "bg-pe-primary-600 dark:bg-pe-primary-500 text-white"
               : "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700"
           )}
         >
@@ -101,7 +101,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
         </div>
       </div>
       {isUser && (
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pe-primary-600 dark:bg-pe-primary-500 flex items-center justify-center">
           <User className="w-5 h-5 text-white" />
         </div>
       )}

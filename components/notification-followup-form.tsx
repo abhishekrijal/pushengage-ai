@@ -173,7 +173,7 @@ export function NotificationFollowupForm({
           maxLength={50}
           className={cn(
             "w-full px-3 py-2 text-sm rounded-lg border bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100",
-            "focus:outline-none focus:ring-2 focus:ring-purple-500",
+            "focus:outline-none focus:ring-2 focus:ring-pe-primary-500",
             editableTitle.length > 50 ? "border-red-300 dark:border-red-700" : "border-gray-300 dark:border-gray-600"
           )}
         />
@@ -211,7 +211,7 @@ export function NotificationFollowupForm({
           required
           className={cn(
             "w-full px-3 py-2 text-sm rounded-lg border bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100",
-            "focus:outline-none focus:ring-2 focus:ring-purple-500",
+            "focus:outline-none focus:ring-2 focus:ring-pe-primary-500",
             !url.trim() ? "border-red-300 dark:border-red-700" : "border-gray-300 dark:border-gray-600"
           )}
         />
@@ -236,11 +236,11 @@ export function NotificationFollowupForm({
               type="button"
               onClick={handleGenerateImage}
               disabled={isGeneratingImage}
-              className={cn(
-                "flex items-center gap-2 text-xs px-3 py-1.5 rounded-md",
-                "bg-purple-500 text-white hover:bg-purple-600",
-                "disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              )}
+                className={cn(
+                  "flex items-center gap-2 text-xs px-3 py-1.5 rounded-md",
+                  "bg-pe-primary-600 text-white hover:bg-pe-primary-700 dark:bg-pe-primary-500 dark:hover:bg-pe-primary-600",
+                  "disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                )}
             >
               {isGeneratingImage ? (
                 <>
@@ -285,8 +285,8 @@ export function NotificationFollowupForm({
                 onClick={handleGenerateImage}
                 disabled={isGeneratingImage}
                 className={cn(
-                  "px-4 py-2 text-sm rounded-lg border border-purple-500 text-purple-600 dark:text-purple-400",
-                  "hover:bg-purple-50 dark:hover:bg-purple-900/20",
+                  "px-4 py-2 text-sm rounded-lg border border-pe-primary-600 text-pe-primary-600 dark:border-pe-primary-500 dark:text-pe-primary-400",
+                  "hover:bg-pe-primary-50 dark:hover:bg-pe-primary-900/20",
                   "disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
                   "flex items-center gap-2"
                 )}
@@ -333,8 +333,9 @@ export function NotificationFollowupForm({
             onClick={handleSend}
             disabled={isLoading || !url.trim()}
             className={cn(
-              "flex-1 px-4 py-2 text-sm rounded-lg bg-purple-500 text-white",
-              "hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed",
+              "flex-1 px-4 py-2 text-sm rounded-lg bg-pe-primary-600 text-white",
+              "hover:bg-pe-primary-700 dark:bg-pe-primary-500 dark:hover:bg-pe-primary-600",
+              "disabled:opacity-50 disabled:cursor-not-allowed",
               "transition-colors flex items-center justify-center gap-2"
             )}
           >

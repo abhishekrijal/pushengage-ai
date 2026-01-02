@@ -30,7 +30,7 @@ export function NotificationOptionsSelector({
             className={cn(
               "w-full text-left p-3 rounded-lg border-2 transition-all",
               selectedId === option.id
-                ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
+                ? "border-pe-primary-600 bg-pe-primary-50 dark:bg-pe-primary-900/20 dark:border-pe-primary-500"
                 : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
             )}
           >
@@ -50,7 +50,7 @@ export function NotificationOptionsSelector({
                 </p>
               </div>
               {selectedId === option.id && (
-                <Check className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                <Check className="w-5 h-5 text-pe-primary-600 dark:text-pe-primary-400 flex-shrink-0" />
               )}
             </div>
           </button>
